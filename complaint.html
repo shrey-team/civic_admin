@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Complaint Details - CivicRevolution</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f4f9;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #dc2626;
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+    }
+
+    header button {
+      background: white;
+      color: #dc2626;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    header button:hover {
+      background: #f3f3f3;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      max-width: 700px;
+      margin: auto;
+    }
+
+    .card h2 {
+      color: #dc2626;
+      margin-bottom: 15px;
+    }
+
+    .detail {
+      margin: 10px 0;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .detail strong {
+      display: inline-block;
+      width: 150px;
+    }
+
+    select {
+      padding: 0.4rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    .back-btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 10px 15px;
+      background: #dc2626;
+      color: white;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: 0.3s;
+    }
+
+    .back-btn:hover {
+      background: #b91c1c;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Complaint Details</h1>
+    <button id="logoutBtn">Logout</button>
+  </header>
+
+  <div class="card" id="complaintDetails">
+    <h2>Loading complaint...</h2>
+  </div>
+
+  <a href="admin-dashboard.html" class="back-btn">⬅ Back to Dashboard</a>
+
+  <!-- Supabase client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://xnqtjcovuqzajuqzaunf.supabase.co";
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhucXRqY292dXF6YWp1cXphdW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MzIyMzEsImV4cCI6MjA3MzEwODIzMX0.YbmzZoqOdIX_inX-khtpg1IsiCNUROAvR4Z2N85lEvM';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const complaintDetails = document.getElementById("complaintDetails");
+
+    // Get complaint ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const complaintId = urlParams.get("id");
+
+    async function loadComplaint() {
+      if (!complaintId) {
+        complaintDetails.innerHTML = "<h2>❌ No complaint ID provided</h2>";
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("complaints")
+        .select("*")
+        .eq("id", complaintId)
+        .single();
+
+      if (error || !data) {
+        complaintDetails.innerHTML = "<h2>❌ Failed to load complaint</h2>";
+        console.error(error);
+        return;
+      }
+
+      complaintDetails.innerHTML = `
+        <h2>Complaint #${data.id}</h2>
+        <div class="detail"><strong>Issue Type:</strong> ${data.issue_type}</div>
+        <div class="detail"><strong>Description:</strong> ${data.description}</div>
+        <div class="detail"><strong>Location:</strong> ${data.location_text} (PIN: ${data.pincode})</div>
+        <div class="detail">
+          <strong>Status:</strong> 
+          <select id="statusDropdown" data-prev="${data.status}">
+            <option ${data.status === "Rejected" ? "selected" : ""}>Rejected</option>
+            <option ${data.status === "In Progress" ? "selected" : ""}>In Progress</option>
+            <option ${data.status === "Solved" ? "selected" : ""}>Solved</option>
+          </select>
+        </div>
+        <div class="detail"><strong>Date Created:</strong> ${new Date(data.created_at).toLocaleString()}</div>
+        ${data.image_urls ? `<div class="detail"><strong>Image:</strong><br><img src="${data.image_urls}" alt="Complaint Image" style="max-width:100%; border-radius:12px; margin-top:10px;"></div>` : ''}
+      `;
+
+      // Add event listener for status dropdown
+      const statusDropdown = document.getElementById("statusDropdown");
+      statusDropdown.addEventListener("change", async function () {
+        const newStatus = this.value;
+
+        const { error: updateError } = await supabase
+          .from("complaints")
+          .update({ status: newStatus })
+          .eq("id", complaintId);
+
+        if (updateError) {
+          console.error("❌ Error updating complaint:", updateError);
+          alert("❌ Failed to update status");
+          this.value = this.getAttribute("data-prev"); // revert back if failed
+        } else {
+          alert(`✅ Complaint #${complaintId} updated to "${newStatus}"`);
+          this.setAttribute("data-prev", newStatus);
+        }
+      });
+    }
+
+    loadComplaint();
+
+    document.getElementById("logoutBtn").onclick = function () {
+      localStorage.removeItem("adminLoggedIn");
+      window.location.href = "index.html";
+    };
+
+    window.onload = function () {
+      if (localStorage.getItem("adminLoggedIn") !== "true") {
+        window.location.href = "index.html";
+      }
+    };
+  </script>
+</body>
+
+</html>

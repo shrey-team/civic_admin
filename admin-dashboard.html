@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Dashboard - CivicRevolution</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f4f9;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #dc2626;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+        }
+
+        header button {
+            background: white;
+            color: #dc2626;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        header button:hover {
+            background: #f3f3f3;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        th,
+        td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f87171;
+            color: white;
+        }
+
+        tr {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        tr:hover {
+            background: #fef2f2;
+        }
+
+        select {
+            padding: 0.4rem;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            cursor: default;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Admin Dashboard</h1>
+        <button id="logoutBtn">Logout</button>
+    </header>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Issue Type</th>
+                <th>Description</th>
+                <th>Location</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="reportTable">
+            <!-- Complaints will load here -->
+        </tbody>
+    </table>
+
+    <!-- Supabase client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = "https://xnqtjcovuqzajuqzaunf.supabase.co";
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhucXRqY292dXF6YWp1cXphdW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MzIyMzEsImV4cCI6MjA3MzEwODIzMX0.YbmzZoqOdIX_inX-khtpg1IsiCNUROAvR4Z2N85lEvM';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const reportTable = document.getElementById("reportTable");
+
+        async function loadComplaints() {
+            reportTable.innerHTML = "";
+            const { data: complaints, error } = await supabase
+                .from("complaints")
+                .select("*")
+                .order("id", { ascending: true });
+
+            if (error) {
+                console.error("Error fetching complaints:", error);
+                return;
+            }
+
+            complaints.forEach(complaint => {
+                const row = document.createElement("tr");
+
+                row.innerHTML = `
+          <td>${complaint.id}</td>
+          <td>${complaint.issue_type}</td>
+          <td>${complaint.description}</td>
+          <td>${complaint.location_text} (PIN: ${complaint.pincode})</td>
+          <td>
+              <select data-id="${complaint.id}" data-prev="${complaint.status}">
+                  <option ${complaint.status === "Rejected" ? "selected" : ""}>Rejected</option>
+                  <option ${complaint.status === "In Progress" ? "selected" : ""}>In Progress</option>
+                  <option ${complaint.status === "Solved" ? "selected" : ""}>Solved</option>
+              </select>
+          </td>
+        `;
+
+                // ✅ make the whole row clickable (except dropdown)
+                row.addEventListener("click", function (e) {
+                    if (e.target.tagName.toLowerCase() === "select") return; // ignore dropdown clicks
+                    window.location.href = `complaint.html?id=${complaint.id}`;
+                });
+
+                reportTable.appendChild(row);
+            });
+
+            document.querySelectorAll("select").forEach(select => {
+                select.addEventListener("change", async function (e) {
+                    e.stopPropagation(); // don’t trigger row click
+
+                    const complaintId = this.getAttribute("data-id");
+                    const newStatus = this.value;
+
+                    const { data, error } = await supabase
+                        .from("complaints")
+                        .update({ status: newStatus })
+                        .eq("id", complaintId)
+                        .select();
+
+                    if (error) {
+                        console.error("❌ Error updating complaint:", error);
+                        alert("❌ Failed to update status");
+                        this.value = this.getAttribute("data-prev");
+                    } else {
+                        console.log("✅ Updated complaint:", data);
+                        alert(`✅ Complaint #${complaintId} updated to "${newStatus}"`);
+                        this.setAttribute("data-prev", newStatus);
+                    }
+                });
+            });
+
+        }
+
+        loadComplaints();
+
+        document.getElementById("logoutBtn").onclick = function () {
+            localStorage.removeItem("adminLoggedIn");
+            window.location.href = "index.html";
+        };
+
+        window.onload = function () {
+            if (localStorage.getItem("adminLoggedIn") !== "true") {
+                window.location.href = "index.html";
+            }
+        };
+    </script>
+</body>
+
+</html>
