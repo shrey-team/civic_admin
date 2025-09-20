@@ -11,6 +11,7 @@
             background: #f4f4f9;
             min-height: 100vh;
             padding: 20px;
+            margin: 0;
         }
 
         header {
@@ -26,6 +27,11 @@
 
         header h1 {
             font-size: 1.5rem;
+        }
+
+        header .actions {
+            display: flex;
+            gap: 10px;
         }
 
         header button {
@@ -78,13 +84,60 @@
             border: 1px solid #ccc;
             cursor: default;
         }
+
+        /* Sidebar Styles */
+        #trackerSidebar {
+            height: 100%;
+            width: 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: white;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+            overflow-x: hidden;
+            overflow-y: auto; /* ✅ allow scrolling if needed */
+            transition: 0.3s;
+            padding: 20px;
+            z-index: 2000;
+            border-right: 4px solid #dc2626;
+            visibility: hidden; /* ✅ hide when closed */
+        }
+
+        /* Show sidebar only when open */
+        #trackerSidebar.open {
+            width: 700px;
+            visibility: visible;
+        }
+
+        #trackerSidebar h2 {
+            margin-top: 0;
+            color: #dc2626;
+        }
+
+        #trackerSidebar table {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        #trackerSidebar .closeBtn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            float: right;
+        }
     </style>
 </head>
 
 <body>
     <header>
         <h1>Admin Dashboard</h1>
-        <button id="logoutBtn">Logout</button>
+        <div class="actions">
+            <button id="performanceBtn">Performance Tracker</button>
+            <button id="logoutBtn">Logout</button>
+        </div>
     </header>
 
     <table>
@@ -102,11 +155,19 @@
         </tbody>
     </table>
 
+    <!-- Sidebar for Performance Tracker -->
+    <div id="trackerSidebar">
+        <button class="closeBtn" onclick="closeTracker()">Close</button>
+        <h2>Performance Tracker</h2>
+        <p><strong>Admin:</strong> <span id="adminName"></span></p>
+        <div id="trackerContent">Loading...</div>
+    </div>
+
     <!-- Supabase client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        const SUPABASE_URL = "https://xnqtjcovuqzajuqzaunf.supabase.co";
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhucXRqY292dXF6YWp1cXphdW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MzIyMzEsImV4cCI6MjA3MzEwODIzMX0.YbmzZoqOdIX_inX-khtpg1IsiCNUROAvR4Z2N85lEvM';
+        const SUPABASE_URL = "https://lxclfklnpktmvtgkpkgg.supabase.co";
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4Y2xma2xucGt0bXZ0Z2twa2dnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyODExNTEsImV4cCI6MjA3Mzg1NzE1MX0.qaAtZrCKsk9w_kIE3A6wX2_U4NAafIaC-pWhPcu3Fzc';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const reportTable = document.getElementById("reportTable");
@@ -127,22 +188,21 @@
                 const row = document.createElement("tr");
 
                 row.innerHTML = `
-          <td>${complaint.id}</td>
-          <td>${complaint.issue_type}</td>
-          <td>${complaint.description}</td>
-          <td>${complaint.location_text} (PIN: ${complaint.pincode})</td>
-          <td>
-              <select data-id="${complaint.id}" data-prev="${complaint.status}">
-                  <option ${complaint.status === "Rejected" ? "selected" : ""}>Rejected</option>
-                  <option ${complaint.status === "In Progress" ? "selected" : ""}>In Progress</option>
-                  <option ${complaint.status === "Solved" ? "selected" : ""}>Solved</option>
-              </select>
-          </td>
-        `;
+                    <td>${complaint.id}</td>
+                    <td>${complaint.issue_type}</td>
+                    <td>${complaint.description}</td>
+                    <td>${complaint.location_text} (PIN: ${complaint.pincode})</td>
+                    <td>
+                        <select data-id="${complaint.id}" data-prev="${complaint.status}">
+                            <option ${complaint.status === "Rejected" ? "selected" : ""}>Rejected</option>
+                            <option ${complaint.status === "In Progress" ? "selected" : ""}>In Progress</option>
+                            <option ${complaint.status === "Solved" ? "selected" : ""}>Solved</option>
+                        </select>
+                    </td>
+                `;
 
-                // ✅ make the whole row clickable (except dropdown)
                 row.addEventListener("click", function (e) {
-                    if (e.target.tagName.toLowerCase() === "select") return; // ignore dropdown clicks
+                    if (e.target.tagName.toLowerCase() === "select") return;
                     window.location.href = `complaint.html?id=${complaint.id}`;
                 });
 
@@ -151,8 +211,7 @@
 
             document.querySelectorAll("select").forEach(select => {
                 select.addEventListener("change", async function (e) {
-                    e.stopPropagation(); // don’t trigger row click
-
+                    e.stopPropagation();
                     const complaintId = this.getAttribute("data-id");
                     const newStatus = this.value;
 
@@ -173,7 +232,6 @@
                     }
                 });
             });
-
         }
 
         loadComplaints();
@@ -188,6 +246,58 @@
                 window.location.href = "index.html";
             }
         };
+
+        // Sidebar functions
+        document.getElementById("performanceBtn").onclick = async function () {
+            const sidebar = document.getElementById("trackerSidebar");
+            sidebar.classList.add("open"); // ✅ show sidebar using class
+            document.getElementById("adminName").textContent = localStorage.getItem("adminName") || "Super Admin";
+
+            const { data: complaints, error } = await supabase
+                .from("complaints")
+                .select("*");
+
+            if (error) {
+                document.getElementById("trackerContent").innerHTML = "❌ Error loading performance data";
+                return;
+            }
+
+            const total = complaints.length;
+            const solved = complaints.filter(c => c.status === "Solved").length;
+            const pending = complaints.filter(c => c.status === "In Progress").length;
+            const rejected = complaints.filter(c => c.status === "Rejected").length;
+
+            const deptStats = {};
+            complaints.forEach(c => {
+                if (!deptStats[c.issue_type]) deptStats[c.issue_type] = { total: 0, solved: 0 };
+                deptStats[c.issue_type].total++;
+                if (c.status === "Solved") deptStats[c.issue_type].solved++;
+            });
+
+            let deptRows = "";
+            for (const dept in deptStats) {
+                deptRows += `<tr>
+                    <td>${dept}</td>
+                    <td>${deptStats[dept].total}</td>
+                    <td>${deptStats[dept].solved}</td>
+                </tr>`;
+            }
+
+            document.getElementById("trackerContent").innerHTML = `
+                <p><strong>Total Complaints:</strong> ${total}</p>
+                <p><strong>Solved:</strong> ${solved} | <strong>Pending:</strong> ${pending} | <strong>Rejected:</strong> ${rejected}</p>
+                <h3>Department-wise Performance</h3>
+                <table border="1" cellspacing="0" cellpadding="6">
+                    <tr><th>Department</th><th>Total</th><th>Solved</th></tr>
+                    ${deptRows}
+                </table>
+            `;
+        };
+
+        function closeTracker() {
+            const sidebar = document.getElementById("trackerSidebar");
+            sidebar.classList.remove("open"); // ✅ hide sidebar using class
+        }
     </script>
 </body>
 
